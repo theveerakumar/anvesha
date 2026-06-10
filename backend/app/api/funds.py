@@ -1,0 +1,45 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..core.database import get_session
+from ..schemas.fund import FundListResponse, FundResponse, FundSearchResult
+from ..services.fund_service import FundService
+
+router = APIRouter(prefix="/api/v1/funds", tags=["funds"])
+
+
+@router.get("/search", response_model=FundSearchResult)
+async def search_funds(
+    q: str = Query(..., min_length=1, description="Search query"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_session),
+):
+    service = FundService(db)
+    results, total = await service.search_funds(q, page=page, page_size=page_size)
+    return FundSearchResult(
+        total=total, page=page, page_size=page_size, results=results
+    )
+
+
+@router.get("/{scheme_code}", response_model=FundResponse)
+async def get_fund(
+    scheme_code: int,
+    db: AsyncSession = Depends(get_session),
+):
+    service = FundService(db)
+    fund = await service.get_fund_by_scheme_code(scheme_code)
+    if not fund:
+        raise HTTPException(status_code=404, detail="Fund not found")
+    return fund
+
+
+@router.get("", response_model=FundListResponse)
+async def list_funds(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_session),
+):
+    service = FundService(db)
+    funds, total = await service.get_funds_list(page=page, page_size=page_size)
+    return FundListResponse(total=total, page=page, page_size=page_size, funds=funds)
