@@ -22,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <a href="/funds" className="hover:text-bloomberg-text transition-colors">Fund Screener</a>
                 <a href="/funds/compare" className="hover:text-bloomberg-text transition-colors">Compare</a>
                 <a href="/categories" className="hover:text-bloomberg-text transition-colors">Categories</a>
+                <a href="/managers" className="hover:text-bloomberg-text transition-colors">Managers</a>
                 <a href="/sip" className="hover:text-bloomberg-text transition-colors">SIP Calculator</a>
               </nav>
             </div>

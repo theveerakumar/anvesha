@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import * as echarts from "echarts";
-import { getFundDetail, FundDetailResponse } from "@/lib/api";
+import { getFundDetail, getFundHoldings, FundDetailResponse, HoldingsResponse } from "@/lib/api";
 
 const formatPct = (v: number | null | undefined, digits = 2) =>
   v != null ? `${v >= 0 ? "+" : ""}${v.toFixed(digits)}%` : "—";
@@ -44,16 +44,23 @@ export default function FundDetailPage() {
   const params = useParams();
   const schemeCode = Number(params.code);
   const [data, setData] = useState<FundDetailResponse | null>(null);
+  const [holdings, setHoldings] = useState<HoldingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+  const sectorChartRef = useRef<HTMLDivElement>(null);
+  const mcChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const d = await getFundDetail(schemeCode);
+        const [d, h] = await Promise.all([
+          getFundDetail(schemeCode),
+          getFundHoldings(schemeCode).catch(() => null),
+        ]);
         setData(d);
+        setHoldings(h);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load fund details");
       } finally {
@@ -117,6 +124,59 @@ export default function FundDetailPage() {
       chart.dispose();
     };
   }, [data]);
+
+  useEffect(() => {
+    if (!holdings || !sectorChartRef.current) return;
+
+    const sectorChart = echarts.init(sectorChartRef.current);
+    const sectorData = Object.entries(holdings.sector_allocation)
+      .map(([name, value]) => ({ name, value: Math.round(value * 10) / 10 }))
+      .filter(d => d.value > 0);
+
+    sectorChart.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "item", formatter: "{b}: {c}%", backgroundColor: "#13181f", borderColor: "#1e2a3a", textStyle: { color: "#c5d0e0" } },
+      series: [{
+        type: "pie", radius: ["40%", "70%"], center: ["50%", "50%"],
+        data: sectorData,
+        label: { color: "#6a7a8e", fontSize: 10, formatter: "{b}\n{d}%" },
+        labelLine: { lineStyle: { color: "#1e2a3a" } },
+        itemStyle: { borderRadius: 4 },
+        color: ["#00c853", "#00bcd4", "#ffd600", "#ff6d00", "#ff1744", "#7c4dff", "#00e5ff", "#76ff03", "#c6ff00", "#ff4081"],
+      }],
+    });
+
+    const handleResize = () => sectorChart.resize();
+    window.addEventListener("resize", handleResize);
+
+    return () => { window.removeEventListener("resize", handleResize); sectorChart.dispose(); };
+  }, [holdings]);
+
+  useEffect(() => {
+    if (!holdings || !mcChartRef.current) return;
+
+    const mcChart = echarts.init(mcChartRef.current);
+    const mcData = Object.entries(holdings.market_cap_allocation)
+      .map(([name, value]) => ({ name, value: Math.round(value * 10) / 10 }))
+      .filter(d => d.value > 0);
+
+    mcChart.setOption({
+      backgroundColor: "transparent",
+      tooltip: { trigger: "item", formatter: "{b}: {c}%", backgroundColor: "#13181f", borderColor: "#1e2a3a", textStyle: { color: "#c5d0e0" } },
+      series: [{
+        type: "pie", radius: ["40%", "70%"], center: ["50%", "50%"],
+        data: mcData,
+        label: { color: "#6a7a8e", fontSize: 10, formatter: "{b}\n{d}%" },
+        labelLine: { lineStyle: { color: "#1e2a3a" } },
+        itemStyle: { borderRadius: 4, color: ["#00bcd4", "#7c4dff", "#00c853"] },
+      }],
+    });
+
+    const handleResize = () => mcChart.resize();
+    window.addEventListener("resize", handleResize);
+
+    return () => { window.removeEventListener("resize", handleResize); mcChart.dispose(); };
+  }, [holdings]);
 
   if (loading) {
     return (
@@ -305,6 +365,56 @@ export default function FundDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* Holdings & Sector Allocation */}
+      {holdings && (
+        <>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
+              <h2 className="text-sm font-semibold text-bloomberg-text mb-3">Sector Allocation</h2>
+              <div ref={sectorChartRef} className="h-56 w-full" />
+            </div>
+            <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
+              <h2 className="text-sm font-semibold text-bloomberg-text mb-3">Market Cap Allocation</h2>
+              <div ref={mcChartRef} className="h-56 w-full" />
+            </div>
+          </div>
+
+          <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
+            <h2 className="text-sm font-semibold text-bloomberg-text mb-3">
+              Top Holdings <span className="text-[10px] text-bloomberg-dim font-normal">({holdings.total_stocks} stocks, {holdings.total_weight}% weight)</span>
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-bloomberg-dim border-b border-bloomberg-border">
+                    <th className="text-left py-2 px-2 font-medium">Stock</th>
+                    <th className="text-left py-2 px-2 font-medium">Sector</th>
+                    <th className="text-right py-2 px-2 font-medium">Weight (%)</th>
+                    <th className="text-right py-2 px-2 font-medium">Market Cap</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holdings.holdings.map((h, i) => (
+                    <tr key={i} className="border-b border-bloomberg-border hover:bg-bloomberg-highlight transition-colors">
+                      <td className="py-2 px-2 text-bloomberg-text">{h.stock_name}</td>
+                      <td className="py-2 px-2 text-bloomberg-dim">{h.sector || "—"}</td>
+                      <td className="py-2 px-2 text-right font-mono text-bloomberg-cyan">{h.weight.toFixed(2)}%</td>
+                      <td className="py-2 px-2 text-right">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          h.market_cap === "Large Cap" ? "bg-blue-900/40 text-blue-400" :
+                          h.market_cap === "Mid Cap" ? "bg-yellow-900/40 text-yellow-400" :
+                          "bg-green-900/40 text-green-400"
+                        }`}>{h.market_cap || "—"}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="text-[10px] text-bloomberg-dim border-t border-bloomberg-border pt-3 space-y-1">
         <p>⚠ Past performance is not indicative of future returns. SMART ratings and recommendations are AI-generated based on historical data and are for informational purposes only. They do not constitute personalized investment advice.</p>

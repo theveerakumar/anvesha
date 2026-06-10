@@ -98,6 +98,64 @@ export interface CompareResponse {
   comparison: CompareRow[];
 }
 
+export interface HoldingItem {
+  stock_name: string;
+  sector: string | null;
+  weight: number;
+  market_cap: string | null;
+}
+
+export interface HoldingsResponse {
+  scheme_code: number;
+  scheme_name: string;
+  holdings: HoldingItem[];
+  sector_allocation: Record<string, number>;
+  market_cap_allocation: Record<string, number>;
+  total_stocks: number;
+  total_weight: number;
+}
+
+export interface ManagerFundSummary {
+  scheme_code: number;
+  scheme_name: string;
+  category: string | null;
+  return_1y: number | null;
+  return_3y: number | null;
+  aum_cr: number | null;
+  expense_ratio: number | null;
+  risk_level: string | null;
+}
+
+export interface ManagerResponse {
+  manager_name: string;
+  total_funds: number;
+  avg_return_1y: number | null;
+  avg_return_3y: number | null;
+  total_aum_cr: number | null;
+  categories: string[];
+  funds: ManagerFundSummary[];
+}
+
+export interface TopPerformer {
+  scheme_code: number;
+  scheme_name: string;
+  category: string | null;
+  return_1y: number | null;
+  cagr_3y: number | null;
+  cagr_5y: number | null;
+  expense_ratio: number | null;
+  aum_cr: number | null;
+  risk_level: string | null;
+  nav: number | null;
+}
+
+export interface TopPerformersResponse {
+  by_1y_return: TopPerformer[];
+  by_3y_cagr: TopPerformer[];
+  by_5y_cagr: TopPerformer[];
+  by_aum: TopPerformer[];
+}
+
 export interface OverlapResponse {
   scheme_code_a: number;
   scheme_name_a: string;
@@ -241,6 +299,18 @@ export async function screenFunds(params: {
     }
   });
   return fetchJSON<FundSearchResult>(`${API_URL}/screener/funds?${searchParams.toString()}`);
+}
+
+export async function getFundHoldings(schemeCode: number): Promise<HoldingsResponse> {
+  return fetchJSON<HoldingsResponse>(`${API_URL}/funds/${schemeCode}/holdings`);
+}
+
+export async function getTopPerformers(limit = 10): Promise<TopPerformersResponse> {
+  return fetchJSON<TopPerformersResponse>(`${API_URL}/funds/top-performers?limit=${limit}`);
+}
+
+export async function listManagers(): Promise<ManagerResponse[]> {
+  return fetchJSON<ManagerResponse[]>(`${API_URL}/managers`);
 }
 
 export async function getFundOverlap(a: number, b: number): Promise<OverlapResponse> {

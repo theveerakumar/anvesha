@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..analytics.holdings import generate_holdings
 from ..analytics.rating import compute_smart_rating
 from ..analytics.recommendation import generate_recommendation
 from ..analytics.returns import compute_max_drawdown, compute_returns
@@ -15,6 +16,7 @@ from ..analytics.risk import (
 )
 from ..models import (
     Fund,
+    FundHolding,
     FundNAVHistory,
     FundRating,
     FundRecommendation,
@@ -458,4 +460,195 @@ class FundService:
             "common_holdings": common,
             "overlap_percentage": round(overlap_pct, 2),
             "diversification_score": diversification_score,
+        }
+
+    async def get_fund_holdings(self, scheme_code: int) -> dict | None:
+        fund = await self.get_fund_by_scheme_code(scheme_code)
+        if not fund:
+            return None
+
+        stmt = select(FundHolding).where(FundHolding.scheme_code == scheme_code)
+        result = await self.db.execute(stmt)
+        existing = result.scalars().all()
+
+        if existing:
+            holdings = [
+                {
+                    "stock_name": h.stock_name,
+                    "sector": h.sector,
+                    "weight": h.weight,
+                    "market_cap": h.market_cap,
+                }
+                for h in existing
+            ]
+        else:
+            data = generate_holdings(
+                scheme_code, fund.scheme_name, fund.scheme_category
+            )
+            holdings = data["holdings"]
+            for h in holdings:
+                self.db.add(FundHolding(scheme_code=scheme_code, **h))
+            await self.db.commit()
+
+        sector_alloc: dict[str, float] = {}
+        mc_alloc: dict[str, float] = {}
+        for h in holdings:
+            sec = h["sector"] or "Other"
+            sector_alloc[sec] = sector_alloc.get(sec, 0) + h["weight"]
+            mc = h["market_cap"] or "Other"
+            mc_alloc[mc] = mc_alloc.get(mc, 0) + h["weight"]
+
+        return {
+            "scheme_code": scheme_code,
+            "scheme_name": fund.scheme_name,
+            "holdings": holdings,
+            "sector_allocation": dict(
+                sorted(sector_alloc.items(), key=lambda x: x[1], reverse=True)
+            ),
+            "market_cap_allocation": dict(
+                sorted(mc_alloc.items(), key=lambda x: x[1], reverse=True)
+            ),
+            "total_stocks": len(holdings),
+            "total_weight": round(sum(h["weight"] for h in holdings), 2),
+        }
+
+    async def get_managers(self) -> list[dict]:
+        stmt = (
+            select(Fund.fund_manager, Fund)
+            .where(Fund.fund_manager.isnot(None))
+            .where(Fund.fund_manager != "")
+            .order_by(Fund.fund_manager)
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+
+        manager_map: dict[str, dict] = {}
+        for row in rows:
+            name = row.fund_manager
+            fund = row.Fund
+            if name not in manager_map:
+                manager_map[name] = {
+                    "manager_name": name,
+                    "total_funds": 0,
+                    "return_1y_list": [],
+                    "return_3y_list": [],
+                    "aum_list": [],
+                    "categories": set(),
+                    "funds": [],
+                }
+            m = manager_map[name]
+            m["total_funds"] += 1
+            if fund.return_1y is not None:
+                m["return_1y_list"].append(fund.return_1y)
+            if fund.return_3y is not None:
+                m["return_3y_list"].append(fund.return_3y)
+            if fund.aum_cr is not None:
+                m["aum_list"].append(fund.aum_cr)
+            if fund.scheme_category:
+                m["categories"].add(fund.scheme_category)
+            m["funds"].append(
+                {
+                    "scheme_code": fund.scheme_code,
+                    "scheme_name": fund.scheme_name,
+                    "category": fund.scheme_category,
+                    "return_1y": fund.return_1y,
+                    "return_3y": fund.return_3y,
+                    "aum_cr": fund.aum_cr,
+                    "expense_ratio": fund.expense_ratio,
+                    "risk_level": fund.risk_level,
+                }
+            )
+
+        result_list = []
+        for name, m in manager_map.items():
+            r1 = [x for x in m["return_1y_list"] if x is not None]
+            r3 = [x for x in m["return_3y_list"] if x is not None]
+            aum = [x for x in m["aum_list"] if x is not None]
+            result_list.append(
+                {
+                    "manager_name": name,
+                    "total_funds": m["total_funds"],
+                    "avg_return_1y": round(sum(r1) / len(r1), 2) if r1 else None,
+                    "avg_return_3y": round(sum(r3) / len(r3), 2) if r3 else None,
+                    "total_aum_cr": round(sum(aum), 2) if aum else None,
+                    "categories": sorted(m["categories"]),
+                    "funds": m["funds"],
+                }
+            )
+
+        result_list.sort(key=lambda x: x["total_aum_cr"] or 0, reverse=True)
+        return result_list
+
+    async def get_top_performers(self, limit: int = 10) -> dict:
+        by_1y = (
+            (
+                await self.db.execute(
+                    select(Fund)
+                    .where(Fund.return_1y.isnot(None))
+                    .order_by(Fund.return_1y.desc())
+                    .limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        by_3y = (
+            (
+                await self.db.execute(
+                    select(Fund)
+                    .where(Fund.return_3y.isnot(None))
+                    .order_by(Fund.return_3y.desc())
+                    .limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        by_5y = (
+            (
+                await self.db.execute(
+                    select(Fund)
+                    .where(Fund.return_5y.isnot(None))
+                    .order_by(Fund.return_5y.desc())
+                    .limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        by_aum = (
+            (
+                await self.db.execute(
+                    select(Fund)
+                    .where(Fund.aum_cr.isnot(None))
+                    .order_by(Fund.aum_cr.desc())
+                    .limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        def to_performer(f: Fund) -> dict:
+            return {
+                "scheme_code": f.scheme_code,
+                "scheme_name": f.scheme_name,
+                "category": f.scheme_category,
+                "return_1y": f.return_1y,
+                "cagr_3y": f.return_3y,
+                "cagr_5y": f.return_5y,
+                "expense_ratio": f.expense_ratio,
+                "aum_cr": f.aum_cr,
+                "risk_level": f.risk_level,
+                "nav": f.nav,
+            }
+
+        return {
+            "by_1y_return": [to_performer(f) for f in by_1y],
+            "by_3y_cagr": [to_performer(f) for f in by_3y],
+            "by_5y_cagr": [to_performer(f) for f in by_5y],
+            "by_aum": [to_performer(f) for f in by_aum],
         }

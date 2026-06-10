@@ -8,6 +8,7 @@ from ..schemas.analytics import (
     CompareResponse,
     CompareFundRow,
     FundDetailResponse,
+    HoldingsResponse,
     NAVHistoryResponse,
     NAVPoint,
     OverlapResponse,
@@ -15,6 +16,7 @@ from ..schemas.analytics import (
     RecommendationResponse,
     ReturnsResponse,
     RiskMetricsResponse,
+    TopPerformersResponse,
 )
 from ..schemas.fund import FundListResponse, FundResponse, FundSearchResult
 from ..services.fund_service import FundService
@@ -157,6 +159,28 @@ async def compare_funds(
     service = FundService(db)
     data = await service.compare_funds(scheme_codes)
     return CompareResponse(**data)
+
+
+@router.get("/{scheme_code}/holdings", response_model=HoldingsResponse)
+async def get_fund_holdings(
+    scheme_code: int,
+    db: AsyncSession = Depends(get_session),
+):
+    service = FundService(db)
+    data = await service.get_fund_holdings(scheme_code)
+    if not data:
+        raise HTTPException(status_code=404, detail="Fund not found")
+    return HoldingsResponse(**data)
+
+
+@router.get("/top-performers", response_model=TopPerformersResponse)
+async def top_performers(
+    limit: int = Query(10, ge=5, le=50),
+    db: AsyncSession = Depends(get_session),
+):
+    service = FundService(db)
+    data = await service.get_top_performers(limit=limit)
+    return TopPerformersResponse(**data)
 
 
 @router.get("/overlap", response_model=OverlapResponse)

@@ -47,6 +47,22 @@ class FundRecommendation(Base):
     )
 
 
+class FundHolding(Base):
+    __tablename__ = "fund_holdings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    scheme_code: Mapped[int] = mapped_column(Integer, index=True)
+    stock_name: Mapped[str] = mapped_column(String(200))
+    sector: Mapped[str | None] = mapped_column(String(100))
+    weight: Mapped[float] = mapped_column(Float)
+    market_cap: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class RecommendationAuditLog(Base):
     __tablename__ = "recommendation_audit_logs"
 

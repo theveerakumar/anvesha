@@ -1,3 +1,4 @@
+from .holdings import generate_holdings
 from .rating import compute_smart_rating
 from .recommendation import generate_recommendation
 from .returns import compute_max_drawdown, compute_returns, get_nav_at_date
@@ -17,6 +18,7 @@ from .sip import compute_sip, compute_sip_stress_test, compute_xirr
 __all__ = [
     "compute_smart_rating",
     "generate_recommendation",
+    "generate_holdings",
     "compute_max_drawdown",
     "compute_returns",
     "get_nav_at_date",

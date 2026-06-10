@@ -124,3 +124,61 @@ class OverlapResponse(BaseModel):
     common_holdings: list[OverlapHolding]
     overlap_percentage: float
     diversification_score: int
+
+
+class HoldingItem(BaseModel):
+    stock_name: str
+    sector: str | None = None
+    weight: float
+    market_cap: str | None = None
+
+
+class HoldingsResponse(BaseModel):
+    scheme_code: int
+    scheme_name: str
+    holdings: list[HoldingItem]
+    sector_allocation: dict[str, float]
+    market_cap_allocation: dict[str, float]
+    total_stocks: int
+    total_weight: float
+
+
+class ManagerFundSummary(BaseModel):
+    scheme_code: int
+    scheme_name: str
+    category: str | None = None
+    return_1y: float | None = None
+    return_3y: float | None = None
+    aum_cr: float | None = None
+    expense_ratio: float | None = None
+    risk_level: str | None = None
+
+
+class ManagerResponse(BaseModel):
+    manager_name: str
+    total_funds: int
+    avg_return_1y: float | None = None
+    avg_return_3y: float | None = None
+    total_aum_cr: float | None = None
+    categories: list[str] = []
+    funds: list[ManagerFundSummary] = []
+
+
+class TopPerformer(BaseModel):
+    scheme_code: int
+    scheme_name: str
+    category: str | None = None
+    return_1y: float | None = None
+    cagr_3y: float | None = None
+    cagr_5y: float | None = None
+    expense_ratio: float | None = None
+    aum_cr: float | None = None
+    risk_level: str | None = None
+    nav: float | None = None
+
+
+class TopPerformersResponse(BaseModel):
+    by_1y_return: list[TopPerformer] = []
+    by_3y_cagr: list[TopPerformer] = []
+    by_5y_cagr: list[TopPerformer] = []
+    by_aum: list[TopPerformer] = []
