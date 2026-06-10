@@ -62,11 +62,59 @@ export interface NAVHistoryData {
   nav_history: NAVPoint[];
 }
 
+export interface RatingData {
+  scheme_code: number;
+  scheme_name: string;
+  star_rating: number;
+  overall_score: number;
+  performance_score: number | null;
+  consistency_score: number | null;
+  risk_score: number | null;
+  cost_score: number | null;
+  portfolio_quality_score: number | null;
+}
+
+export interface RecommendationData {
+  scheme_code: number;
+  scheme_name: string;
+  recommendation: string;
+  confidence_score: number;
+  reasoning: string;
+  strengths: string | null;
+  weaknesses: string | null;
+  opportunities: string | null;
+  risks: string | null;
+}
+
+export interface CompareRow {
+  metric: string;
+  values: Record<string, string>;
+  winner: string | null;
+}
+
+export interface CompareResponse {
+  schemes: number[];
+  funds: Fund[];
+  comparison: CompareRow[];
+}
+
+export interface OverlapResponse {
+  scheme_code_a: number;
+  scheme_name_a: string;
+  scheme_code_b: number;
+  scheme_name_b: string;
+  common_holdings: { stock: string; sector: string | null; weight_a: number | null; weight_b: number | null }[];
+  overlap_percentage: number;
+  diversification_score: number;
+}
+
 export interface FundDetailResponse {
   fund: Fund;
-  returns: ReturnsData;
-  risk: RiskData;
-  nav_history: NAVHistoryData;
+  returns: ReturnsData | null;
+  risk: RiskData | null;
+  rating: RatingData | null;
+  recommendation: RecommendationData | null;
+  nav_history: NAVHistoryData | null;
 }
 
 export interface FundSearchResult {
@@ -108,8 +156,8 @@ export interface CategoryListResponse {
   total: number;
 }
 
-async function fetchJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, options);
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
@@ -152,4 +200,24 @@ export async function listCategories(): Promise<CategoryListResponse> {
 
 export async function getCategory(name: string, limit = 10): Promise<CategoryResponse> {
   return fetchJSON<CategoryResponse>(`${API_URL}/categories/${encodeURIComponent(name)}?limit=${limit}`);
+}
+
+export async function getFundRating(schemeCode: number): Promise<RatingData> {
+  return fetchJSON<RatingData>(`${API_URL}/funds/${schemeCode}/rating`);
+}
+
+export async function getFundRecommendation(schemeCode: number): Promise<RecommendationData> {
+  return fetchJSON<RecommendationData>(`${API_URL}/funds/${schemeCode}/recommendation`);
+}
+
+export async function compareFunds(schemeCodes: number[]): Promise<CompareResponse> {
+  return fetchJSON<CompareResponse>(`${API_URL}/funds/compare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(schemeCodes),
+  });
+}
+
+export async function getFundOverlap(a: number, b: number): Promise<OverlapResponse> {
+  return fetchJSON<OverlapResponse>(`${API_URL}/funds/overlap?a=${a}&b=${b}`);
 }

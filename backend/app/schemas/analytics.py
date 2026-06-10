@@ -31,6 +31,30 @@ class RiskMetricsResponse(BaseModel):
     risk_level: str | None = None
 
 
+class RatingResponse(BaseModel):
+    scheme_code: int
+    scheme_name: str
+    star_rating: int
+    overall_score: float
+    performance_score: float | None = None
+    consistency_score: float | None = None
+    risk_score: float | None = None
+    cost_score: float | None = None
+    portfolio_quality_score: float | None = None
+
+
+class RecommendationResponse(BaseModel):
+    scheme_code: int
+    scheme_name: str
+    recommendation: str
+    confidence_score: float
+    reasoning: str
+    strengths: str | None = None
+    weaknesses: str | None = None
+    opportunities: str | None = None
+    risks: str | None = None
+
+
 class NAVPoint(BaseModel):
     date: str
     nav: float
@@ -66,6 +90,37 @@ class CategoryResponse(BaseModel):
 
 class FundDetailResponse(BaseModel):
     fund: dict
-    returns: ReturnsResponse
-    risk: RiskMetricsResponse
-    nav_history: NAVHistoryResponse
+    returns: ReturnsResponse | None = None
+    risk: RiskMetricsResponse | None = None
+    rating: RatingResponse | None = None
+    recommendation: RecommendationResponse | None = None
+    nav_history: NAVHistoryResponse | None = None
+
+
+class CompareFundRow(BaseModel):
+    metric: str
+    values: dict[str, str]
+    winner: str | None = None
+
+
+class CompareResponse(BaseModel):
+    schemes: list[int]
+    funds: list[dict]
+    comparison: list[CompareFundRow]
+
+
+class OverlapHolding(BaseModel):
+    stock: str
+    sector: str | None = None
+    weight_a: float | None = None
+    weight_b: float | None = None
+
+
+class OverlapResponse(BaseModel):
+    scheme_code_a: int
+    scheme_name_a: str
+    scheme_code_b: int
+    scheme_name_b: str
+    common_holdings: list[OverlapHolding]
+    overlap_percentage: float
+    diversification_score: int
