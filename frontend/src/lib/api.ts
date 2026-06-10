@@ -22,6 +22,53 @@ export interface Fund {
   benchmark: string | null;
 }
 
+export interface ReturnsData {
+  scheme_code: number;
+  scheme_name: string;
+  return_1m: number | null;
+  return_3m: number | null;
+  return_6m: number | null;
+  return_1y: number | null;
+  cagr_3y: number | null;
+  cagr_5y: number | null;
+  cagr_7y: number | null;
+  cagr_10y: number | null;
+  max_drawdown: number | null;
+}
+
+export interface RiskData {
+  scheme_code: number;
+  scheme_name: string;
+  std_dev: number | null;
+  beta: number | null;
+  alpha: number | null;
+  sharpe_ratio: number | null;
+  sortino_ratio: number | null;
+  treynor_ratio: number | null;
+  information_ratio: number | null;
+  max_drawdown: number | null;
+  risk_score: number | null;
+  risk_level: string | null;
+}
+
+export interface NAVPoint {
+  date: string;
+  nav: number;
+}
+
+export interface NAVHistoryData {
+  scheme_code: number;
+  scheme_name: string;
+  nav_history: NAVPoint[];
+}
+
+export interface FundDetailResponse {
+  fund: Fund;
+  returns: ReturnsData;
+  risk: RiskData;
+  nav_history: NAVHistoryData;
+}
+
 export interface FundSearchResult {
   total: number;
   page: number;
@@ -34,6 +81,31 @@ export interface FundListResponse {
   page: number;
   page_size: number;
   funds: Fund[];
+}
+
+export interface CategoryResponse {
+  category: string;
+  total_funds: number;
+  avg_return_1y: number | null;
+  avg_cagr_3y: number | null;
+  avg_cagr_5y: number | null;
+  top_funds: {
+    scheme_code: number;
+    scheme_name: string;
+    nav: number | null;
+    return_1y: number | null;
+    cagr_3y: number | null;
+    cagr_5y: number | null;
+    expense_ratio: number | null;
+    aum_cr: number | null;
+    sharpe_ratio: number | null;
+    risk_level: string | null;
+  }[];
+}
+
+export interface CategoryListResponse {
+  categories: string[];
+  total: number;
 }
 
 async function fetchJSON<T>(url: string): Promise<T> {
@@ -54,8 +126,30 @@ export async function getFund(schemeCode: number): Promise<Fund> {
   return fetchJSON<Fund>(`${API_URL}/funds/${schemeCode}`);
 }
 
+export async function getFundDetail(schemeCode: number): Promise<FundDetailResponse> {
+  return fetchJSON<FundDetailResponse>(`${API_URL}/funds/${schemeCode}/detail`);
+}
+
+export async function getFundReturns(schemeCode: number): Promise<ReturnsData> {
+  return fetchJSON<ReturnsData>(`${API_URL}/funds/${schemeCode}/returns`);
+}
+
+export async function getFundRisk(schemeCode: number): Promise<RiskData> {
+  return fetchJSON<RiskData>(`${API_URL}/funds/${schemeCode}/risk`);
+}
+
+export async function getFundNavHistory(schemeCode: number): Promise<NAVHistoryData> {
+  return fetchJSON<NAVHistoryData>(`${API_URL}/funds/${schemeCode}/nav-history`);
+}
+
 export async function listFunds(page = 1, pageSize = 50): Promise<FundListResponse> {
-  return fetchJSON<FundListResponse>(
-    `${API_URL}/funds?page=${page}&page_size=${pageSize}`
-  );
+  return fetchJSON<FundListResponse>(`${API_URL}/funds?page=${page}&page_size=${pageSize}`);
+}
+
+export async function listCategories(): Promise<CategoryListResponse> {
+  return fetchJSON<CategoryListResponse>(`${API_URL}/categories`);
+}
+
+export async function getCategory(name: string, limit = 10): Promise<CategoryResponse> {
+  return fetchJSON<CategoryResponse>(`${API_URL}/categories/${encodeURIComponent(name)}?limit=${limit}`);
 }

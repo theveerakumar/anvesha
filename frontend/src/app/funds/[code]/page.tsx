@@ -1,22 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getFund, Fund } from "@/lib/api";
+import * as echarts from "echarts";
+import { getFundDetail, FundDetailResponse } from "@/lib/api";
+
+const formatPct = (v: number | null | undefined, digits = 2) =>
+  v != null ? `${v >= 0 ? "+" : ""}${v.toFixed(digits)}%` : "—";
+
+const formatNum = (v: number | null | undefined, digits = 2) =>
+  v != null ? v.toFixed(digits) : "—";
+
+const riskColor = (level: string | null) => {
+  switch (level) {
+    case "Very Low Risk": return "text-bloomberg-green";
+    case "Low Risk": return "text-bloomberg-cyan";
+    case "Moderate Risk": return "text-bloomberg-yellow";
+    case "High Risk": return "text-orange-400";
+    case "Very High Risk": return "text-bloomberg-red";
+    default: return "text-bloomberg-dim";
+  }
+};
 
 export default function FundDetailPage() {
   const params = useParams();
   const schemeCode = Number(params.code);
-  const [fund, setFund] = useState<Fund | null>(null);
+  const [data, setData] = useState<FundDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstance = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await getFund(schemeCode);
-        setFund(data);
+        const d = await getFundDetail(schemeCode);
+        setData(d);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load fund details");
       } finally {
@@ -26,17 +46,87 @@ export default function FundDetailPage() {
     if (schemeCode) load();
   }, [schemeCode]);
 
+  useEffect(() => {
+    if (!data || !chartRef.current) return;
+
+    if (chartInstance.current) {
+      chartInstance.current.dispose();
+    }
+
+    const chart = echarts.init(chartRef.current, undefined, { renderer: "canvas" });
+    chartInstance.current = chart;
+
+    const navData = data.nav_history.nav_history.slice(-500);
+    const dates = navData.map((p) => p.date);
+    const values = navData.map((p) => p.nav);
+
+    chart.setOption({
+      backgroundColor: "transparent",
+      grid: { left: 60, right: 20, top: 20, bottom: 30 },
+      tooltip: {
+        trigger: "axis",
+        theme: "dark",
+        formatter: (params: any) => {
+          const p = params[0];
+          return `<div class="text-sm">${p.axisValue}<br/><span style="color:#00c853">NAV: <b>${p.value}</b></span></div>`;
+        },
+        backgroundColor: "#13181f",
+        borderColor: "#1e2a3a",
+        textStyle: { color: "#c5d0e0" },
+      },
+      xAxis: {
+        type: "category",
+        data: dates,
+        axisLine: { lineStyle: { color: "#1e2a3a" } },
+        axisLabel: {
+          color: "#6a7a8e",
+          fontSize: 10,
+          formatter: (v: string) => v.slice(0, 7),
+        },
+        splitLine: { show: false },
+      },
+      yAxis: {
+        type: "value",
+        axisLine: { show: false },
+        axisLabel: { color: "#6a7a8e", fontSize: 10 },
+        splitLine: { lineStyle: { color: "#1e2a3a", type: "dashed" } },
+      },
+      series: [
+        {
+          type: "line",
+          data: values,
+          smooth: true,
+          showSymbol: false,
+          lineStyle: { color: "#00bcd4", width: 1.5 },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: "rgba(0,188,212,0.3)" },
+              { offset: 1, color: "rgba(0,188,212,0.02)" },
+            ]),
+          },
+        },
+      ],
+    });
+
+    const handleResize = () => chart.resize();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      chart.dispose();
+    };
+  }, [data]);
+
   if (loading) {
     return (
       <div className="p-4 md:p-6 space-y-4">
         <div className="skeleton h-5 w-64" />
         <div className="skeleton h-8 w-full" />
-        <div className="skeleton h-32 w-full" />
+        <div className="skeleton h-64 w-full" />
       </div>
     );
   }
 
-  if (error || !fund) {
+  if (error || !data) {
     return (
       <div className="p-4 md:p-6">
         <div className="bg-bloomberg-surface border border-bloomberg-red/30 rounded p-4 text-sm text-bloomberg-red">
@@ -49,7 +139,31 @@ export default function FundDetailPage() {
     );
   }
 
-  const metrics = [
+  const { fund, returns, risk } = data;
+
+  const returnItems = [
+    { label: "1 Month", value: returns.return_1m },
+    { label: "3 Month", value: returns.return_3m },
+    { label: "6 Month", value: returns.return_6m },
+    { label: "1 Year", value: returns.return_1y },
+    { label: "3 Year (CAGR)", value: returns.cagr_3y },
+    { label: "5 Year (CAGR)", value: returns.cagr_5y },
+    { label: "7 Year (CAGR)", value: returns.cagr_7y },
+    { label: "10 Year (CAGR)", value: returns.cagr_10y },
+  ];
+
+  const riskItems = [
+    { label: "Std Deviation", value: risk.std_dev != null ? formatNum(risk.std_dev) : "—" },
+    { label: "Beta", value: risk.beta != null ? formatNum(risk.beta) : "—" },
+    { label: "Alpha", value: risk.alpha != null ? formatPct(risk.alpha) : "—" },
+    { label: "Sharpe Ratio", value: risk.sharpe_ratio != null ? formatNum(risk.sharpe_ratio) : "—" },
+    { label: "Sortino Ratio", value: risk.sortino_ratio != null ? formatNum(risk.sortino_ratio) : "—" },
+    { label: "Treynor Ratio", value: risk.treynor_ratio != null ? formatNum(risk.treynor_ratio) : "—" },
+    { label: "Information Ratio", value: risk.information_ratio != null ? formatNum(risk.information_ratio) : "—" },
+    { label: "Max Drawdown", value: risk.max_drawdown != null ? formatPct(risk.max_drawdown) : "—" },
+  ];
+
+  const infoItems = [
     { label: "NAV", value: fund.nav?.toFixed(2) || "—" },
     { label: "NAV Date", value: fund.nav_date || "—" },
     { label: "Category", value: fund.scheme_category || "—" },
@@ -57,9 +171,9 @@ export default function FundDetailPage() {
     { label: "AMC", value: fund.amc || fund.fund_family || "—" },
     { label: "AUM (Cr)", value: fund.aum_cr != null ? `₹${fund.aum_cr.toFixed(2)}` : "—" },
     { label: "Expense Ratio", value: fund.expense_ratio != null ? `${fund.expense_ratio.toFixed(2)}%` : "—" },
-    { label: "Risk Level", value: fund.risk_level || "—" },
-    { label: "Benchmark", value: fund.benchmark || "—" },
     { label: "Fund Manager", value: fund.fund_manager || "—" },
+    { label: "Benchmark", value: fund.benchmark || "—" },
+    { label: "ISIN", value: fund.isin || "—" },
   ];
 
   return (
@@ -70,33 +184,38 @@ export default function FundDetailPage() {
         <span>/</span>
         <Link href="/funds" className="hover:text-bloomberg-text">Fund Screener</Link>
         <span>/</span>
-        <span className="text-bloomberg-cyan truncate max-w-[300px]">{fund.scheme_name}</span>
+        <span className="text-bloomberg-cyan truncate max-w-[400px]">{fund.scheme_name}</span>
       </div>
 
       {/* Fund Header */}
-      <div>
-        <h1 className="text-base font-semibold text-bloomberg-text leading-tight">
-          {fund.scheme_name}
-        </h1>
-        <div className="flex items-center gap-3 mt-1 text-[11px] text-bloomberg-dim">
-          <span>{fund.scheme_category || "Uncategorized"}</span>
-          <span className="w-1 h-1 rounded-full bg-bloomberg-border" />
-          <span>Code: {fund.scheme_code}</span>
-          {fund.isin && (
-            <>
-              <span className="w-1 h-1 rounded-full bg-bloomberg-border" />
-              <span>ISIN: {fund.isin}</span>
-            </>
-          )}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-base font-semibold text-bloomberg-text leading-tight">
+            {fund.scheme_name}
+          </h1>
+          <div className="flex items-center gap-3 mt-1 text-[11px] text-bloomberg-dim">
+            <span>{fund.scheme_category || "Uncategorized"}</span>
+            <span className="w-1 h-1 rounded-full bg-bloomberg-border" />
+            <span>Code: {fund.scheme_code}</span>
+          </div>
         </div>
+        {risk.risk_level && (
+          <div className={`text-right ${riskColor(risk.risk_level)}`}>
+            <div className="text-[10px] uppercase tracking-wider text-bloomberg-dim">Risk Level</div>
+            <div className="text-sm font-semibold">{risk.risk_level}</div>
+            {risk.risk_score != null && (
+              <div className="text-[10px] text-bloomberg-dim">Score: {risk.risk_score}/100</div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Metrics grid */}
+      {/* Info Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {metrics.map((m) => (
+        {infoItems.map((m) => (
           <div key={m.label} className="bg-bloomberg-surface border border-bloomberg-border rounded p-3">
             <div className="text-[10px] text-bloomberg-dim uppercase tracking-wider">{m.label}</div>
-            <div className="text-sm font-mono text-bloomberg-text mt-1">{m.value}</div>
+            <div className="text-sm font-mono text-bloomberg-text mt-1 truncate">{m.value}</div>
           </div>
         ))}
       </div>
@@ -104,38 +223,45 @@ export default function FundDetailPage() {
       {/* Returns */}
       <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
         <h2 className="text-sm font-semibold text-bloomberg-text mb-3">Returns</h2>
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "1 Year", value: fund.return_1y },
-            { label: "3 Years (CAGR)", value: fund.return_3y },
-            { label: "5 Years (CAGR)", value: fund.return_5y },
-          ].map((r) => (
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+          {returnItems.map((r) => (
             <div key={r.label} className="text-center">
               <div className="text-[10px] text-bloomberg-dim uppercase">{r.label}</div>
               <div
-                className={`text-lg font-mono font-semibold ${
+                className={`text-sm font-mono font-semibold mt-1 ${
                   r.value != null ? (r.value >= 0 ? "text-bloomberg-green" : "text-bloomberg-red") : "text-bloomberg-dim"
                 }`}
               >
-                {r.value != null ? `${r.value.toFixed(2)}%` : "—"}
+                {formatPct(r.value)}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Placeholder for charts */}
+      {/* NAV Chart */}
       <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
         <h2 className="text-sm font-semibold text-bloomberg-text mb-3">NAV History</h2>
-        <div className="h-48 flex items-center justify-center text-bloomberg-dim text-xs border border-dashed border-bloomberg-border rounded">
-          NAV chart will be rendered here with ECharts (coming in Phase 2)
+        <div ref={chartRef} className="h-72 w-full" />
+      </div>
+
+      {/* Risk Metrics */}
+      <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
+        <h2 className="text-sm font-semibold text-bloomberg-text mb-3">Risk Metrics</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {riskItems.map((r) => (
+            <div key={r.label} className="text-center p-2">
+              <div className="text-[10px] text-bloomberg-dim uppercase">{r.label}</div>
+              <div className="text-sm font-mono font-semibold mt-1 text-bloomberg-text">{r.value}</div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Risk Disclosure */}
       <div className="text-[10px] text-bloomberg-dim border-t border-bloomberg-border pt-3">
-        ⚠ Past performance is not indicative of future returns. This data is for informational purposes only
-        and does not constitute investment advice. Please consult a SEBI-registered investment advisor.
+        ⚠ Past performance is not indicative of future returns. Risk metrics are calculated using historical NAV data
+        and may not reflect future risk. This is for informational purposes only and does not constitute investment advice.
       </div>
     </div>
   );
