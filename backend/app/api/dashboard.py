@@ -46,6 +46,7 @@ class FundRow(BaseModel):
     aum_cr: float | None = None
     expense_ratio: float | None = None
     return_1y: float | None = None
+    rolling_return_1y_avg: float | None = None
     rolling_return_3y_avg: float | None = None
     rolling_return_5y_avg: float | None = None
     rolling_return_positive_pct: float | None = None
@@ -66,6 +67,7 @@ class TopPick(BaseModel):
     sub_category: str | None = None
     composite_score: float | None = None
     return_1y: float | None = None
+    rolling_return_1y_avg: float | None = None
     aum_cr: float | None = None
 
 
@@ -161,6 +163,7 @@ async def get_dashboard(
     allowed_sorts = {
         "composite_score",
         "return_1y",
+        "rolling_return_1y_avg",
         "rolling_return_3y_avg",
         "rolling_return_5y_avg",
         "aum_cr",
@@ -190,7 +193,7 @@ async def get_dashboard(
             SELECT
                 scheme_code, scheme_name, category_group, sub_category,
                 scheme_category, amc, nav, aum_cr, expense_ratio,
-                return_1y, rolling_return_3y_avg, rolling_return_5y_avg,
+                return_1y, rolling_return_1y_avg, rolling_return_3y_avg, rolling_return_5y_avg,
                 rolling_return_positive_pct, risk_level,
                 composite_score, score_performance, score_risk,
                 score_consistency, score_cost, score_scale,
@@ -216,18 +219,19 @@ async def get_dashboard(
                 aum_cr=round(r[7], 2) if r[7] else None,
                 expense_ratio=round(r[8], 3) if r[8] else None,
                 return_1y=round(r[9], 2) if r[9] else None,
-                rolling_return_3y_avg=round(r[10], 2) if r[10] else None,
-                rolling_return_5y_avg=round(r[11], 2) if r[11] else None,
-                rolling_return_positive_pct=round(r[12], 1) if r[12] else None,
-                risk_level=r[13],
-                composite_score=round(r[14], 1) if r[14] else None,
-                score_performance=round(r[15], 1) if r[15] else None,
-                score_risk=round(r[16], 1) if r[16] else None,
-                score_consistency=round(r[17], 1) if r[17] else None,
-                score_cost=round(r[18], 1) if r[18] else None,
-                score_scale=round(r[19], 1) if r[19] else None,
-                future_return_indicator=round(r[20], 1) if r[20] else None,
-                fund_age_years=r[21],
+                rolling_return_1y_avg=round(r[10], 2) if r[10] else None,
+                rolling_return_3y_avg=round(r[11], 2) if r[11] else None,
+                rolling_return_5y_avg=round(r[12], 2) if r[12] else None,
+                rolling_return_positive_pct=round(r[13], 1) if r[13] else None,
+                risk_level=r[14],
+                composite_score=round(r[15], 1) if r[15] else None,
+                score_performance=round(r[16], 1) if r[16] else None,
+                score_risk=round(r[17], 1) if r[17] else None,
+                score_consistency=round(r[18], 1) if r[18] else None,
+                score_cost=round(r[19], 1) if r[19] else None,
+                score_scale=round(r[20], 1) if r[20] else None,
+                future_return_indicator=round(r[21], 1) if r[21] else None,
+                fund_age_years=r[22],
             )
         )
 

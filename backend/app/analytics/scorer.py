@@ -71,26 +71,22 @@ def compute_composite_score(
                 s = _minmax(val, min_v, max_v)
             perf_scores.append(s * weight)
 
-    scores["score_performance"] = round(
-        sum(perf_scores)
-        / sum(
-            w
-            for w, v in zip(
-                perf_weights,
-                [
-                    metrics.return_1y,
-                    metrics.rolling_3y,
-                    metrics.rolling_5y,
-                    metrics.rolling_positive_pct,
-                    metrics.rolling_upside_downside,
-                ],
-            )
-            if v is not None
+    weights_sum = sum(
+        w
+        for w, v in zip(
+            perf_weights,
+            [
+                metrics.return_1y,
+                metrics.rolling_3y,
+                metrics.rolling_5y,
+                metrics.rolling_positive_pct,
+                metrics.rolling_upside_downside,
+            ],
         )
-        * 100
-        if perf_scores
-        else 50,
-        1,
+        if v is not None
+    )
+    scores["score_performance"] = round(
+        sum(perf_scores) / weights_sum if perf_scores and weights_sum > 0 else 50, 1
     )
 
     # Risk (25%)
@@ -142,7 +138,7 @@ def compute_composite_score(
         cons_scores.append(max(0, 100 - spread * 1.5) * 0.05)
 
     scores["score_consistency"] = round(
-        (sum(cons_scores) / 0.15 * 100 if cons_scores else 50), 1
+        (sum(cons_scores) / 0.15 if cons_scores else 50), 1
     )
 
     # Cost (15%)

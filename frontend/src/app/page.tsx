@@ -13,7 +13,7 @@ import {
 
 const SORT_OPTIONS: { key: string; label: string }[] = [
   { key: "composite_score", label: "Score" },
-  { key: "return_1y", label: "1Y Return" },
+  { key: "rolling_return_1y_avg", label: "1Y Return" },
   { key: "rolling_return_3y_avg", label: "3Y Roll" },
   { key: "rolling_return_5y_avg", label: "5Y Roll" },
   { key: "aum_cr", label: "AUM" },
@@ -262,8 +262,8 @@ export default function DashboardPage() {
                     <td className="py-2 px-2 text-bloomberg-text truncate max-w-[260px]">{f.scheme_name}</td>
                     <td className="py-2 px-2 text-bloomberg-dim">{f.sub_category?.replace(/_/g, " ") || f.scheme_category || "—"}</td>
                     <td className="py-2 px-2 text-right font-mono">{formatNum(f.nav)}</td>
-                    <td className={`py-2 px-2 text-right font-mono ${(f.return_1y ?? 0) >= 0 ? "text-bloomberg-green" : "text-bloomberg-red"}`}>
-                      {formatPct(f.return_1y)}
+                    <td className={`py-2 px-2 text-right font-mono ${(f.rolling_return_1y_avg ?? 0) >= 0 ? "text-bloomberg-green" : "text-bloomberg-red"}`}>
+                      {formatPct(f.rolling_return_1y_avg)}
                     </td>
                     <td className={`py-2 px-2 text-right font-mono ${(f.rolling_return_3y_avg ?? 0) >= 0 ? "text-bloomberg-green" : "text-bloomberg-red"}`}>
                       {formatPct(f.rolling_return_3y_avg)}

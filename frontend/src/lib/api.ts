@@ -338,6 +338,7 @@ export interface FundRow {
   aum_cr: number | null;
   expense_ratio: number | null;
   return_1y: number | null;
+  rolling_return_1y_avg: number | null;
   rolling_return_3y_avg: number | null;
   rolling_return_5y_avg: number | null;
   rolling_return_positive_pct: number | null;
@@ -358,6 +359,7 @@ export interface TopPick {
   sub_category: string | null;
   composite_score: number | null;
   return_1y: number | null;
+  rolling_return_1y_avg: number | null;
   aum_cr: number | null;
 }
 
