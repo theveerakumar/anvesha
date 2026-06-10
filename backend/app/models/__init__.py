@@ -1,5 +1,6 @@
 from .fund import Fund, FundNAVHistory
 from .analytics import (
+    BacktestResult,
     FundHolding,
     FundRating,
     FundRecommendation,
@@ -12,5 +13,6 @@ __all__ = [
     "FundHolding",
     "FundRating",
     "FundRecommendation",
+    "BacktestResult",
     "RecommendationAuditLog",
 ]

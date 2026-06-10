@@ -1,7 +1,10 @@
+from .categorizer import classify, infer_category_group, infer_sub_category
 from .holdings import generate_holdings
 from .rating import compute_smart_rating
 from .recommendation import generate_recommendation
 from .returns import compute_max_drawdown, compute_returns, get_nav_at_date
+from .rolling_returns import compute_max_drawdown_from_nav, compute_rolling_returns
+from .scorer import FundMetrics, compute_composite_score
 from .risk import (
     compute_all_risk_metrics,
     compute_beta,
@@ -16,10 +19,17 @@ from .risk import (
 from .sip import compute_sip, compute_sip_stress_test, compute_xirr
 
 __all__ = [
+    "classify",
+    "infer_category_group",
+    "infer_sub_category",
     "compute_smart_rating",
     "generate_recommendation",
     "generate_holdings",
     "compute_max_drawdown",
+    "compute_max_drawdown_from_nav",
+    "compute_rolling_returns",
+    "FundMetrics",
+    "compute_composite_score",
     "compute_returns",
     "get_nav_at_date",
     "compute_all_risk_metrics",

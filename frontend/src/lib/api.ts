@@ -313,6 +313,83 @@ export async function listManagers(): Promise<ManagerResponse[]> {
   return fetchJSON<ManagerResponse[]>(`${API_URL}/managers`);
 }
 
+export interface DashboardTab {
+  key: string;
+  label: string;
+  count: number;
+  total_aum_cr: number | null;
+}
+
+export interface SubCategoryInfo {
+  key: string;
+  label: string;
+  count: number;
+  avg_composite: number | null;
+}
+
+export interface FundRow {
+  scheme_code: number;
+  scheme_name: string;
+  category_group: string | null;
+  sub_category: string | null;
+  scheme_category: string | null;
+  amc: string | null;
+  nav: number | null;
+  aum_cr: number | null;
+  expense_ratio: number | null;
+  return_1y: number | null;
+  rolling_return_3y_avg: number | null;
+  rolling_return_5y_avg: number | null;
+  rolling_return_positive_pct: number | null;
+  risk_level: string | null;
+  composite_score: number | null;
+  score_performance: number | null;
+  score_risk: number | null;
+  score_consistency: number | null;
+  score_cost: number | null;
+  score_scale: number | null;
+  future_return_indicator: number | null;
+  fund_age_years: number | null;
+}
+
+export interface TopPick {
+  scheme_code: number;
+  scheme_name: string;
+  sub_category: string | null;
+  composite_score: number | null;
+  return_1y: number | null;
+  aum_cr: number | null;
+}
+
+export interface DashboardResponse {
+  tabs: DashboardTab[];
+  current_tab: string;
+  total: number;
+  total_aum_cr: number | null;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  funds: FundRow[];
+  sub_categories: SubCategoryInfo[];
+  top_picks: TopPick[];
+}
+
+export async function getDashboard(
+  tab = "all",
+  subCategory?: string,
+  sortBy = "composite_score",
+  sortOrder = "desc",
+  page = 1,
+  pageSize = 20
+): Promise<DashboardResponse> {
+  const params = new URLSearchParams({
+    tab, sort_by: sortBy, sort_order: sortOrder,
+    page: String(page), page_size: String(pageSize),
+  });
+  if (subCategory) params.set("sub_category", subCategory);
+  return fetchJSON<DashboardResponse>(`${API_URL}/dashboard?${params.toString()}`);
+}
+
 export async function getFundOverlap(a: number, b: number): Promise<OverlapResponse> {
   return fetchJSON<OverlapResponse>(`${API_URL}/funds/overlap?a=${a}&b=${b}`);
 }

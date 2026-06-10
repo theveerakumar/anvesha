@@ -63,6 +63,26 @@ class FundHolding(Base):
     )
 
 
+class BacktestResult(Base):
+    __tablename__ = "backtest_results"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    factor_name: Mapped[str] = mapped_column(String(100))
+    category_group: Mapped[str | None] = mapped_column(String(50))
+    predictive_power: Mapped[float | None] = mapped_column(Float)
+    direction: Mapped[str | None] = mapped_column(String(20))
+    avg_top_quintile_fwd: Mapped[float | None] = mapped_column(Float)
+    avg_bottom_quintile_fwd: Mapped[float | None] = mapped_column(Float)
+    spread: Mapped[float | None] = mapped_column(Float)
+    hit_rate: Mapped[float | None] = mapped_column(Float)
+    observation_count: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class RecommendationAuditLog(Base):
     __tablename__ = "recommendation_audit_logs"
 
