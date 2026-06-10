@@ -1,7 +1,5 @@
 from .rating import compute_smart_rating
 from .recommendation import generate_recommendation
-from .rating import compute_smart_rating
-from .recommendation import generate_recommendation
 from .returns import compute_max_drawdown, compute_returns, get_nav_at_date
 from .risk import (
     compute_all_risk_metrics,
@@ -14,6 +12,7 @@ from .risk import (
     compute_std_dev,
     classify_risk,
 )
+from .sip import compute_sip, compute_sip_stress_test, compute_xirr
 
 __all__ = [
     "compute_smart_rating",
@@ -30,4 +29,7 @@ __all__ = [
     "compute_sortino_ratio",
     "compute_std_dev",
     "classify_risk",
+    "compute_sip",
+    "compute_sip_stress_test",
+    "compute_xirr",
 ]

@@ -218,6 +218,31 @@ export async function compareFunds(schemeCodes: number[]): Promise<CompareRespon
   });
 }
 
+export async function screenFunds(params: {
+  q?: string;
+  category?: string;
+  min_return_1y?: number;
+  max_return_1y?: number;
+  min_return_3y?: number;
+  max_return_3y?: number;
+  min_return_5y?: number;
+  max_expense_ratio?: number;
+  min_aum_cr?: number;
+  risk_level?: string;
+  sort_by?: string;
+  sort_order?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<FundSearchResult> {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      searchParams.set(key, String(value));
+    }
+  });
+  return fetchJSON<FundSearchResult>(`${API_URL}/screener/funds?${searchParams.toString()}`);
+}
+
 export async function getFundOverlap(a: number, b: number): Promise<OverlapResponse> {
   return fetchJSON<OverlapResponse>(`${API_URL}/funds/overlap?a=${a}&b=${b}`);
 }
