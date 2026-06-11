@@ -17,6 +17,12 @@ from .risk import (
     classify_risk,
 )
 from .sip import compute_sip, compute_sip_stress_test, compute_xirr
+from .swp import (
+    compute_swp,
+    compute_swp_longevity,
+    compute_swp_max_withdrawal,
+    compute_swp_stress_test,
+)
 
 __all__ = [
     "classify",
@@ -44,4 +50,8 @@ __all__ = [
     "compute_sip",
     "compute_sip_stress_test",
     "compute_xirr",
+    "compute_swp",
+    "compute_swp_longevity",
+    "compute_swp_max_withdrawal",
+    "compute_swp_stress_test",
 ]

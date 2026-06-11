@@ -125,20 +125,28 @@ async def enrich_nav_history(limit: int = 100):
     print(f"\n=== Step 3: Fetch NAV History (limit={limit}) ===")
     async with async_session_factory() as session:
         result = await session.execute(
-            select(Fund)
-            .where(Fund.category_group.isnot(None))
-            .order_by(Fund.updated_at)
-            .limit(limit)
+            text(
+                "SELECT id, scheme_code FROM funds "
+                "WHERE scheme_code IS NOT NULL "
+                "AND category_group IS NOT NULL "
+                "AND NOT EXISTS (SELECT 1 FROM fund_nav_history WHERE fund_nav_history.fund_id = funds.id) "
+                "ORDER BY updated_at LIMIT :lim"
+            ),
+            {"lim": limit},
         )
-        funds = result.scalars().all()
+        queue = [(r[0], r[1]) for r in result.all()]
 
     provider = get_provider()
     enriched = 0
-    for fund in funds:
+    for fund_id, scheme_code in queue:
         try:
-            detail = await provider.get_fund_detail(fund.scheme_code)
+            detail = await provider.get_fund_detail(scheme_code)
             if detail and detail.nav_history:
                 async with async_session_factory() as session:
+                    fund = await session.get(Fund, fund_id)
+                    if not fund:
+                        continue
+
                     for nav in detail.nav_history:
                         existing = await session.execute(
                             text(
@@ -154,16 +162,16 @@ async def enrich_nav_history(limit: int = 100):
                                 {"fid": fund.id, "nd": nav.date, "n": nav.nav},
                             )
 
-                    if detail.nav:
+                    if detail.nav is not None:
                         fund.nav = detail.nav
-                    if detail.nav_date:
+                    if detail.nav_date is not None:
                         fund.nav_date = detail.nav_date
-                    if not fund.launch_date and detail.nav_history:
+                    if fund.launch_date is None and detail.nav_history:
                         fund.launch_date = detail.nav_history[0].date
                     await session.commit()
                     enriched += 1
         except Exception as e:
-            print(f"  Error {fund.scheme_code}: {e}")
+            print(f"  Error {scheme_code}: {e}")
 
         if enriched % 10 == 0 and enriched > 0:
             print(f"  ... {enriched} enriched")
@@ -185,9 +193,8 @@ async def compute_all_rolling_returns():
         )
         funds = result.scalars().all()
 
-    computed = 0
-    for fund in funds:
-        async with async_session_factory() as session:
+        computed = 0
+        for fund in funds:
             try:
                 nav_data = await session.execute(
                     text(
@@ -201,19 +208,16 @@ async def compute_all_rolling_returns():
                     rr = compute_rolling_returns(nav_history)
                     for k, v in rr.items():
                         setattr(fund, k, v)
-                    fund.rolling_return_positive_pct = rr.get(
-                        "rolling_return_positive_pct"
-                    )
-                    await session.commit()
                     computed += 1
             except Exception as e:
                 print(f"  Error computing {fund.scheme_code}: {e}")
 
-        if computed % 100 == 0 and computed > 0:
-            print(f"  ... {computed} computed")
+            if computed % 100 == 0 and computed > 0:
+                print(f"  ... {computed} computed")
 
-    print(f"Computed rolling returns for {computed} funds")
-    return computed
+        await session.commit()
+        print(f"Computed rolling returns for {computed} funds")
+        return computed
 
 
 async def compute_all_scores():

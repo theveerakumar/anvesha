@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import DataStatus from "@/components/DataStatus";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,21 +15,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Top header bar */}
           <header className="flex items-center justify-between px-4 h-10 bg-bloomberg-surface border-b border-bloomberg-border shrink-0">
             <div className="flex items-center gap-4">
-              <span className="text-bloomberg-green font-bold text-sm tracking-wider font-mono">
+              <span className="text-bloomberg-green font-black text-lg tracking-widest font-mono">
                 ANVESHA
               </span>
               <nav className="hidden md:flex items-center gap-3 text-xs text-bloomberg-dim">
                 <a href="/" className="hover:text-bloomberg-text transition-colors">Dashboard</a>
                 <a href="/funds" className="hover:text-bloomberg-text transition-colors">Fund Screener</a>
-                <a href="/funds/compare" className="hover:text-bloomberg-text transition-colors">Compare</a>
                 <a href="/categories" className="hover:text-bloomberg-text transition-colors">Categories</a>
-                <a href="/managers" className="hover:text-bloomberg-text transition-colors">Managers</a>
                 <a href="/sip" className="hover:text-bloomberg-text transition-colors">SIP Calculator</a>
+                <a href="/swp" className="hover:text-bloomberg-text transition-colors">SWP Calculator</a>
               </nav>
             </div>
-            <div className="flex items-center gap-3 text-xs text-bloomberg-dim">
-              <span className="text-bloomberg-cyan font-mono">SEBI RIA</span>
-              <span className="w-2 h-2 rounded-full bg-bloomberg-green" title="Data feed active" />
+            <div className="flex items-center gap-3 text-[11px] text-white text-right leading-tight">
+              <span className="hidden md:inline">For research purposes only · Not SEBI registered RIA</span>
             </div>
           </header>
 
@@ -39,9 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Bottom status bar */}
           <footer className="flex items-center justify-between px-4 h-7 bg-bloomberg-surface border-t border-bloomberg-border shrink-0 text-[10px] text-bloomberg-dim font-mono">
-            <span>ANVESHA v0.1.0</span>
+            <span>Rev 84fc43b</span>
             <span>Data: MFAPI.in | Not investment advice. For research purposes only.</span>
-            <span id="market-status">Live</span>
+            <span className="flex items-center gap-1"><DataStatus /></span>
           </footer>
         </div>
       </body>

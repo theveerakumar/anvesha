@@ -58,6 +58,7 @@ class FundRow(BaseModel):
     score_cost: float | None = None
     score_scale: float | None = None
     future_return_indicator: float | None = None
+    backtest_confidence: float | None = None
     fund_age_years: int | None = None
 
 
@@ -162,6 +163,7 @@ async def get_dashboard(
 
     allowed_sorts = {
         "composite_score",
+        "future_return_indicator",
         "return_1y",
         "rolling_return_1y_avg",
         "rolling_return_3y_avg",
@@ -170,6 +172,8 @@ async def get_dashboard(
         "expense_ratio",
         "nav",
         "rolling_return_positive_pct",
+        "fund_age_years",
+        "backtest_confidence",
     }
     if sort_by not in allowed_sorts:
         sort_by = "composite_score"
@@ -198,6 +202,7 @@ async def get_dashboard(
                 composite_score, score_performance, score_risk,
                 score_consistency, score_cost, score_scale,
                 future_return_indicator,
+                backtest_confidence,
                 EXTRACT(YEAR FROM age(launch_date))::int as fund_age_years
             FROM funds
             WHERE {where_clause}
@@ -231,25 +236,55 @@ async def get_dashboard(
                 score_cost=round(r[19], 1) if r[19] else None,
                 score_scale=round(r[20], 1) if r[20] else None,
                 future_return_indicator=round(r[21], 1) if r[21] else None,
-                fund_age_years=r[22],
+                backtest_confidence=round(r[22], 3) if r[22] else None,
+                fund_age_years=r[23],
             )
         )
 
-    # Top picks: top 5 by composite score per sub-category
+    # Top picks: top fund by score per category, per tab
     top_picks = []
-    if tab == "equity":
-        for sc in [
+    TOP_PICK_BY_SUB_CATEGORY = {
+        "equity": [
             "large_cap",
             "mid_cap",
             "small_cap",
             "multi_cap",
             "flexi_cap",
             "elss",
-        ]:
+        ],
+    }
+    TOP_PICK_BY_SCHEME_CATEGORY = {
+        "hybrid": [
+            "Hybrid Scheme - Aggressive Hybrid Fund",
+            "Hybrid Scheme - Arbitrage Fund",
+            "Hybrid Scheme - Equity Savings",
+            "Hybrid Scheme - Dynamic Asset Allocation or Balanced Advantage",
+            "Hybrid Scheme - Conservative Hybrid Fund",
+            "Hybrid Scheme - Multi Asset Allocation",
+        ],
+        "index": [
+            "Other Scheme - Index Funds",
+            "Other Scheme - Other  ETFs",
+            "Other Scheme - FoF Domestic",
+        ],
+        "debt": [
+            "Income",
+            "Debt Scheme - Liquid Fund",
+            "Debt Scheme - Ultra Short Duration Fund",
+            "Debt Scheme - Short Duration Fund",
+            "Debt Scheme - Low Duration Fund",
+            "Debt Scheme - Overnight Fund",
+        ],
+    }
+    TOP_PICK_OVERALL = {"gold_silver", "global", "solution", "other"}
+
+    if tab in TOP_PICK_BY_SUB_CATEGORY:
+        cats = TOP_PICK_BY_SUB_CATEGORY[tab]
+        for sc in cats:
             rows = await db.execute(
                 text(f"""
                     SELECT scheme_code, scheme_name, sub_category, composite_score, return_1y, aum_cr
-                    FROM funds WHERE category_group = 'equity' AND sub_category = '{sc}'
+                    FROM funds WHERE category_group = '{tab}' AND sub_category = '{sc}'
                     AND composite_score IS NOT NULL
                     ORDER BY composite_score DESC LIMIT 1
                 """)
@@ -266,11 +301,35 @@ async def get_dashboard(
                         aum_cr=round(r[5], 1) if r[5] else None,
                     )
                 )
-    elif tab == "gold_silver":
+    elif tab in TOP_PICK_BY_SCHEME_CATEGORY:
+        cats = TOP_PICK_BY_SCHEME_CATEGORY[tab]
+        for sc in cats:
+            escaped = sc.replace("'", "''")
+            rows = await db.execute(
+                text(f"""
+                    SELECT scheme_code, scheme_name, scheme_category, composite_score, return_1y, aum_cr
+                    FROM funds WHERE category_group = '{tab}' AND scheme_category = '{escaped}'
+                    AND composite_score IS NOT NULL
+                    ORDER BY composite_score DESC LIMIT 1
+                """)
+            )
+            r = rows.first()
+            if r:
+                top_picks.append(
+                    TopPick(
+                        scheme_code=r[0],
+                        scheme_name=r[1],
+                        sub_category=r[2],
+                        composite_score=round(r[3], 1) if r[3] else None,
+                        return_1y=round(r[4], 1) if r[4] else None,
+                        aum_cr=round(r[5], 1) if r[5] else None,
+                    )
+                )
+    elif tab in TOP_PICK_OVERALL:
         rows = await db.execute(
-            text("""
+            text(f"""
                 SELECT scheme_code, scheme_name, sub_category, composite_score, return_1y, aum_cr
-                FROM funds WHERE category_group = 'gold_silver' AND composite_score IS NOT NULL
+                FROM funds WHERE category_group = '{tab}' AND composite_score IS NOT NULL
                 ORDER BY composite_score DESC LIMIT 5
             """)
         )
@@ -298,3 +357,14 @@ async def get_dashboard(
         sub_categories=sub_categories if tab == "equity" else [],
         top_picks=top_picks,
     )
+
+
+class DataStatusResponse(BaseModel):
+    last_update: str | None
+
+
+@router.get("/data-status", response_model=DataStatusResponse)
+async def get_data_status(db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(func.max(Fund.updated_at)))
+    last = result.scalar()
+    return DataStatusResponse(last_update=last.isoformat() if last else None)

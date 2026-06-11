@@ -350,6 +350,7 @@ export interface FundRow {
   score_cost: number | null;
   score_scale: number | null;
   future_return_indicator: number | null;
+  backtest_confidence: number | null;
   fund_age_years: number | null;
 }
 
@@ -374,6 +375,37 @@ export interface DashboardResponse {
   funds: FundRow[];
   sub_categories: SubCategoryInfo[];
   top_picks: TopPick[];
+}
+
+export interface RecommendationFund {
+  scheme_code: number;
+  scheme_name: string;
+  sub_category: string | null;
+  category_group: string | null;
+  composite_score: number | null;
+  rolling_return_3y_avg: number | null;
+  rolling_return_positive_pct: number | null;
+  risk_level: string | null;
+  aum_cr: number | null;
+  expense_ratio: number | null;
+  rolling_return_5y_avg: number | null;
+  rec_score: number | null;
+}
+
+export interface RecommendationsResponse {
+  funds: RecommendationFund[];
+}
+
+export async function getSwpRecommendations(limit = 5): Promise<RecommendationsResponse> {
+  return fetchJSON<RecommendationsResponse>(`${API_URL}/recommendations/swp?limit=${limit}`);
+}
+
+export async function getSipRecommendations(limit = 5): Promise<RecommendationsResponse> {
+  return fetchJSON<RecommendationsResponse>(`${API_URL}/recommendations/sip?limit=${limit}`);
+}
+
+export async function getDataStatus(): Promise<{ last_update: string | null }> {
+  return fetchJSON<{ last_update: string | null }>(`${API_URL}/dashboard/data-status`);
 }
 
 export async function getDashboard(

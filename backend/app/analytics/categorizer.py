@@ -258,13 +258,30 @@ def _normalize(text: str | None) -> str:
     return (text or "").lower().replace("-", " ").replace("_", " ").strip()
 
 
+CATEGORY_PREFIX_MAP: list[tuple[str, str]] = [
+    ("debt scheme", "debt"),
+    ("equity scheme", "equity"),
+    ("hybrid scheme", "hybrid"),
+    ("solution oriented scheme", "solution"),
+    ("other scheme - index", "index"),
+    ("other scheme - gold", "gold_silver"),
+    ("other scheme - fof overseas", "global"),
+]
+
+
 def infer_category_group(
     scheme_name: str | None, scheme_category: str | None = None
 ) -> str:
     name = _normalize(scheme_name)
     cat = _normalize(scheme_category)
 
-    # First try scheme_category mapping
+    # First check scheme_category against full prefix patterns
+    # (more reliable than substring keyword matching)
+    for prefix, group in CATEGORY_PREFIX_MAP:
+        if prefix in cat:
+            return group
+
+    # Then try scheme_category mapping
     for key, group in CATEGORY_TO_GROUP.items():
         if key in cat or key in name:
             return group

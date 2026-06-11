@@ -29,7 +29,13 @@ export default function ManagersPage() {
     v != null ? `${v >= 0 ? "+" : ""}${v.toFixed(2)}%` : "—";
 
   const formatAum = (v: number | null | undefined) =>
-    v != null ? `₹${(v / 1000).toFixed(1)}K Cr` : "—";
+    v != null
+      ? v >= 100000
+        ? `₹${(v / 100000).toFixed(1)}L Cr`
+        : v >= 1000
+          ? `₹${(v / 1000).toFixed(1)}K Cr`
+          : `₹${v.toFixed(0)} Cr`
+      : "—";
 
   if (loading) {
     return (

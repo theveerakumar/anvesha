@@ -168,7 +168,8 @@ export default function FundDetailPage() {
         data: mcData,
         label: { color: "#6a7a8e", fontSize: 10, formatter: "{b}\n{d}%" },
         labelLine: { lineStyle: { color: "#1e2a3a" } },
-        itemStyle: { borderRadius: 4, color: ["#00bcd4", "#7c4dff", "#00c853"] },
+        color: ["#00bcd4", "#7c4dff", "#00c853"],
+        itemStyle: { borderRadius: 4 },
       }],
     });
 
@@ -213,22 +214,22 @@ export default function FundDetailPage() {
   ];
 
   const riskItems = [
-    { label: "Std Dev", value: risk ? formatNum(risk.std_dev) : "—" },
-    { label: "Beta", value: risk?.beta != null ? formatNum(risk.beta) : "—" },
-    { label: "Alpha", value: risk?.alpha != null ? formatPct(risk.alpha) : "—" },
-    { label: "Sharpe", value: risk ? formatNum(risk.sharpe_ratio) : "—" },
-    { label: "Sortino", value: risk ? formatNum(risk.sortino_ratio) : "—" },
-    { label: "Treynor", value: risk?.treynor_ratio != null ? formatNum(risk.treynor_ratio) : "—" },
-    { label: "Info Ratio", value: risk?.information_ratio != null ? formatNum(risk.information_ratio) : "—" },
-    { label: "Max DD", value: risk ? formatPct(risk.max_drawdown) : "—" },
+    { label: "Std Dev", value: risk ? formatNum(risk.std_dev) : "—", desc: "How much returns vary from average. Higher values mean higher volatility." },
+    { label: "Beta", value: risk?.beta != null ? formatNum(risk.beta) : "—", desc: "Sensitivity to market moves. >1 amplifies market changes, <1 is less volatile." },
+    { label: "Alpha", value: risk?.alpha != null ? formatPct(risk.alpha) : "—", desc: "Risk-adjusted excess return vs benchmark. Positive = outperformed expectations." },
+    { label: "Sharpe", value: risk ? formatNum(risk.sharpe_ratio) : "—", desc: "Return per unit of risk. Higher is better. >1 good, >2 excellent." },
+    { label: "Sortino", value: risk ? formatNum(risk.sortino_ratio) : "—", desc: "Like Sharpe ratio but only considers downside volatility. Higher = better downside risk-adjusted returns." },
+    { label: "Treynor", value: risk?.treynor_ratio != null ? formatNum(risk.treynor_ratio) : "—", desc: "Return per unit of systematic risk (beta). Higher = better relative to market risk taken." },
+    { label: "Info Ratio", value: risk?.information_ratio != null ? formatNum(risk.information_ratio) : "—", desc: "Active return relative to tracking error. Higher = more consistent outperformance." },
+    { label: "Max DD", value: risk ? formatPct(risk.max_drawdown) : "—", desc: "Largest peak-to-trough decline. Less negative = smaller historical losses." },
   ];
 
   const scoreItems = [
-    { label: "Performance", value: rating?.performance_score, weight: "35%" },
-    { label: "Consistency", value: rating?.consistency_score, weight: "15%" },
-    { label: "Risk", value: rating?.risk_score, weight: "25%" },
-    { label: "Cost", value: rating?.cost_score, weight: "10%" },
-    { label: "Portfolio", value: rating?.portfolio_quality_score, weight: "15%" },
+    { label: "Performance", value: rating?.performance_score, weight: "35%", desc: "Score based on historical returns (1Y, 3Y, 5Y CAGR) relative to category peers." },
+    { label: "Consistency", value: rating?.consistency_score, weight: "15%", desc: "How consistently the fund has outperformed its benchmark across time periods." },
+    { label: "Risk", value: rating?.risk_score, weight: "25%", desc: "Overall risk assessment combining volatility, drawdown, and downside risk metrics." },
+    { label: "Cost", value: rating?.cost_score, weight: "10%", desc: "Expense ratio and load structure score. Lower costs score higher." },
+    { label: "Portfolio", value: rating?.portfolio_quality_score, weight: "15%", desc: "Portfolio quality based on holdings diversification and concentration risk." },
   ];
 
   return (
@@ -316,7 +317,10 @@ export default function FundDetailPage() {
           <h2 className="text-sm font-semibold text-bloomberg-text mb-3">SMART Score Breakdown</h2>
           <div className="grid grid-cols-5 gap-3">
             {scoreItems.map((s) => (
-              <div key={s.label} className="text-center">
+              <div key={s.label} className="text-center group relative">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded bg-gray-900 border border-gray-700 text-[10px] text-gray-200 leading-tight opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg max-w-[220px] whitespace-normal">
+                  {s.desc}
+                </div>
                 <div className="text-[10px] text-bloomberg-dim uppercase">{s.label}</div>
                 <div className="text-lg font-mono font-semibold text-bloomberg-text">
                   {s.value != null ? `${s.value.toFixed(0)}` : "—"}
@@ -358,7 +362,10 @@ export default function FundDetailPage() {
         <h2 className="text-sm font-semibold text-bloomberg-text mb-3">Risk Metrics</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {riskItems.map((r) => (
-            <div key={r.label} className="text-center p-2">
+            <div key={r.label} className="text-center p-2 group relative">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded bg-gray-900 border border-gray-700 text-[10px] text-gray-200 leading-tight opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg max-w-[220px] whitespace-normal">
+                {r.desc}
+              </div>
               <div className="text-[10px] text-bloomberg-dim uppercase">{r.label}</div>
               <div className="text-sm font-mono font-semibold mt-1 text-bloomberg-text">{r.value}</div>
             </div>
@@ -372,11 +379,11 @@ export default function FundDetailPage() {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
               <h2 className="text-sm font-semibold text-bloomberg-text mb-3">Sector Allocation</h2>
-              <div ref={sectorChartRef} className="h-56 w-full" />
+              <div ref={sectorChartRef} className="h-96 w-full" />
             </div>
             <div className="bg-bloomberg-surface border border-bloomberg-border rounded p-4">
               <h2 className="text-sm font-semibold text-bloomberg-text mb-3">Market Cap Allocation</h2>
-              <div ref={mcChartRef} className="h-56 w-full" />
+              <div ref={mcChartRef} className="h-96 w-full" />
             </div>
           </div>
 
