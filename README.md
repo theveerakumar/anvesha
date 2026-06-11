@@ -1,6 +1,14 @@
 # Anvesha — Mutual Fund Intelligence Platform
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Anvesha (Sanskrit: अन्वेष, "inquiry" / "research") is a self-hosted mutual fund research platform with a Bloomberg-terminal aesthetic. It ingests the full AMFI mutual fund master (>37K schemes), computes rolling returns, SMART ratings, composite scores, and risk metrics, and exposes them through a FastAPI backend and a Next.js dashboard.
+
+**Intended audience:** retail investors, research analysts, and anyone who wants data-driven mutual fund analysis without relying on black-box ratings.
+
+**Project status:** active development. See [CHANGELOG](CHANGELOG.md) for release history and [Roadmap](#roadmap) for planned features.
+
+---
 
 ## Architecture
 
@@ -8,12 +16,62 @@ Anvesha (Sanskrit: अन्वेष, "inquiry" / "research") is a self-hosted 
 docker-compose up    # starts all services
 ```
 
-| Service | Tech | Port |
-|---------|------|------|
-| **Postgres** | PostgreSQL 16 | 5433 |
-| **Redis** | Redis 7 (caching) | 6379 |
-| **Backend** | FastAPI / Python 3.12 / SQLAlchemy async | 8000 |
-| **Frontend** | Next.js 14 / Tailwind CSS / ECharts | 3000 |
+| Service  | Tech                                                  | Port |
+| -------- | ----------------------------------------------------- | ---- |
+| Postgres | PostgreSQL 16                                         | 5433 |
+| Redis    | Redis 7 (caching)                                     | 6379 |
+| Backend  | FastAPI / Python 3.12 / SQLAlchemy async / Uvicorn    | 8000 |
+| Frontend | Next.js 14 / React 18 / Tailwind CSS / ECharts / Radix | 3000 |
+
+---
+
+## Packages
+
+### Docker Images
+
+Two container images are built from this repository:
+
+| Image                    | Base            | Description                |
+| ------------------------ | --------------- | -------------------------- |
+| `anvesha-backend`        | `python:3.12-slim` | FastAPI + Uvicorn server |
+| `anvesha-frontend`       | `node:20-alpine`   | Next.js standalone server |
+
+Images are built locally via `docker compose build`. On tagged releases, the CI workflow ([`.github/workflows/docker-build.yml`](.github/workflows/docker-build.yml)) automatically builds and pushes both images to `ghcr.io/theveerakumar/anvesha-{backend,frontend}`.
+
+### Python (Backend)
+
+The backend is an async Python application managed via `backend/requirements.txt`.
+
+| Package            | Purpose                            |
+| ------------------ | ---------------------------------- |
+| `fastapi`          | API framework                      |
+| `sqlalchemy[asyncio]` | ORM with async support          |
+| `asyncpg`          | PostgreSQL async driver            |
+| `alembic`          | Database migrations                |
+| `redis[hiredis]`   | Caching layer                      |
+| `httpx`            | HTTP client for MFAPI.in           |
+| `pandas` / `numpy` | Data manipulation for analytics    |
+| `scikit-learn`     | Factor backtesting and scoring     |
+
+Full list: [`backend/requirements.txt`](backend/requirements.txt)
+
+### npm (Frontend)
+
+The frontend is a Next.js application defined in `frontend/package.json` (`anvesha-frontend@0.1.0`).
+
+| Package                   | Purpose                      |
+| ------------------------- | ---------------------------- |
+| `next`                    | React framework (SSR/SSG)    |
+| `react` / `react-dom`     | UI library                   |
+| `echarts` / `echarts-for-react` | Interactive NAV charts |
+| `tailwindcss`             | Utility-first CSS            |
+| `@radix-ui/*`             | Accessible UI primitives     |
+| `@tanstack/react-query`   | Server state management      |
+| `lucide-react`            | Icon library                 |
+
+Full list: [`frontend/package.json`](frontend/package.json)
+
+---
 
 ## Data Pipeline
 
@@ -22,6 +80,8 @@ docker-compose up    # starts all services
 3. **`compute_rolling_and_scores.py`** — computes rolling 1y/3y/5y averages (min, max, mean) and positive-return percentages, then generates composite SMART scores
 4. **`compute_future_indicator.py`** — runs factor backtesting to produce forward-looking return indicators and confidence levels
 5. **`compute_risk_level.py`** — assigns risk-level labels (Very Low through Very High)
+
+---
 
 ## Features
 
@@ -49,6 +109,8 @@ docker-compose up    # starts all services
 - **Categories** — browse by SEBI scheme category with avg returns and top funds
 - **Fund Managers** — aggregated stats by fund manager (total funds, avg returns, AUM, categories managed)
 
+---
+
 ## Scoring Methodology
 
 ### Composite Score (0–100)
@@ -74,6 +136,8 @@ Multi-factor peer-relative scoring within each category group:
 - `future_return_indicator` × 20% — predicted potential
 - `rolling_return_positive_pct` × 15% — consistency
 - `score_consistency` × 15% — reliability
+
+---
 
 ## API Endpoints
 
@@ -107,11 +171,46 @@ Multi-factor peer-relative scoring within each category group:
 | `POST /api/v1/swp/max-withdrawal` | Max sustainable withdrawal (PMT) |
 | `POST /api/v1/swp/stress-test` | SWP stress test |
 
+---
+
+## Releases
+
+Releases are versioned using [Semantic Versioning](https://semver.org/) (`v0.1.0`, `v0.2.0`, etc.) and tagged in git.
+
+### Current release
+
+- **v0.1.0** — Full dashboard, recommendation engine, SWP/SIP calculators, fund analysis suite. See [CHANGELOG](CHANGELOG.md) for details.
+
+### Creating a new release
+
+```bash
+# Tag and push
+git tag v0.2.0
+git push origin v0.2.0
+
+# This triggers the CI workflow (docker-build.yml) to:
+# 1. Build backend and frontend Docker images
+# 2. Push them to ghcr.io/theveerakumar/anvesha-{backend,frontend}
+# 3. Tag as :v0.2.0 and :latest
+```
+
+### Docker images
+
+Pre-built images are published to GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/theveerakumar/anvesha-backend:v0.1.0
+docker pull ghcr.io/theveerakumar/anvesha-frontend:v0.1.0
+```
+
+---
+
 ## Quick Start
 
 ```bash
 # Clone and start
-git clone <repo> && cd anvesha
+git clone https://github.com/theveerakumar/anvesha
+cd anvesha
 docker compose up -d
 
 # Seed the database
@@ -131,11 +230,52 @@ docker compose exec backend python3 scripts/compute_risk_level.py
 open http://localhost:3000
 ```
 
+---
+
+## Roadmap
+
+- [ ] Live market snapshot (integrate MintByte or NSE/BSE API)
+- [ ] Portfolio tracker with XIRR tracking
+- [ ] Fund manager data enrichment (currently all NULL)
+- [ ] Export reports (PDF/CSV)
+- [ ] Dark/light theme toggle
+- [ ] Automated data refresh via cron
+- [ ] Mobile-responsive refinements
+- [ ] API documentation (OpenAPI/Swagger already available at `/docs`)
+
+---
+
 ## Data Sources
 
 - **`api.mfapi.in`** — public MF API for scheme master and NAV history
 - **AMFI India** — official NAV declarations
 - Computed analytics (rolling returns, risk metrics, scores, ratings) are generated locally
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes (`git commit -am 'Add my feature'`)
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
+
+### Development setup
+
+```bash
+docker compose up -d
+# Backend hot-reloads at :8000
+# Frontend hot-reloads at :3000
+```
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Veerakumar
+
+---
 
 ## Disclaimer
 
